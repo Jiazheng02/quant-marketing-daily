@@ -18,8 +18,16 @@ import glob
 import os
 import smtplib
 import sys
+import unicodedata
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+
+try:
+    import markdown
+    _HAS_MD = True
+except ImportError:
+    _HAS_MD = False
+    import re
 
 
 def _find_latest_report() -> str | None:
@@ -27,6 +35,25 @@ def _find_latest_report() -> str | None:
     pattern = os.path.join("output", "2*.md")
     reports = sorted(glob.glob(pattern))
     return reports[-1] if reports else None
+
+
+def _render_html_md(text: str) -> str:
+    """Convert Markdown to HTML (use `markdown` package if available)."""
+    if _HAS_MD:
+        return markdown.markdown(
+            text,
+            extensions=["extra", "nl2br", "sane_lists"]
+        )
+    # Fallback: very basic conversion
+    html = text
+    html = re.sub(r"^### (.+)$", r"<h4>\1</h4>", html, flags=re.MULTILINE)
+    html = re.sub(r"^## (.+)$", r"<h3>\1</h3>", html, flags=re.MULTILINE)
+    html = re.sub(r"^# (.+)$", r"<h2>\1</h2>", html, flags=re.MULTILINE)
+    html = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", html)
+    html = re.sub(r"\*(.+?)\*", r"<em>\1</em>", html)
+    html = re.sub(r"\[(.+?)\]\((.+?)\)", r'<a href="\2">\1</a>', html)
+    html = html.replace("\n\n", "<br><br>")
+    return html
 
 
 def send_email(report_path: str) -> None:
@@ -37,8 +64,7 @@ def send_email(report_path: str) -> None:
     from_addr = os.environ.get("SMTP_FROM", username)
     to_addrs = [a.strip() for a in os.environ["NOTIFY_EMAIL"].split(",") if a.strip()]
 
-    # Sanitize password: remove non-ASCII chars and whitespace (common when copying from browser)
-    import unicodedata
+    # Sanitize password: remove non-ASCII chars and whitespace
     password = unicodedata.normalize("NFKC", password).strip().replace(" ", "")
 
     if not to_addrs:
@@ -53,26 +79,26 @@ def send_email(report_path: str) -> None:
 
     # Build multipart email (plain text + HTML)
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = f"Quant Marketing Daily — {date_str}"
+    msg["Subject"] = f"Quant Marketing Daily \u2014 {date_str}"
     msg["From"] = from_addr
     msg["To"] = ", ".join(to_addrs)
 
     # Plain-text version
     msg.attach(MIMEText(report_content, "plain", "utf-8"))
 
-    # HTML version — render Markdown minimally for readability
-    html_body = report_content.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    html_body = html_body.replace("\n", "<br>\n")
-    # Make headings bold
-    import re
-    html_body = re.sub(r"^###\s+(.*?)<br>", r"<h4>\1</h4>", html_body, flags=re.MULTILINE)
-    html_body = re.sub(r"^##\s+(.*?)<br>", r"<h3>\1</h3>", html_body, flags=re.MULTILINE)
-    html_body = re.sub(r"^#\s+(.*?)<br>", r"<h2>\1</h2>", html_body, flags=re.MULTILINE)
+    # HTML version
+    html_body = _render_html_md(report_content)
     html_content = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
-body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 720px; margin: 2rem auto; color: #24292f; line-height: 1.6; }}
-h2, h3, h4 {{ margin-top: 1.5em; }}
-a {{ color: #0969da; }}
+body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; color: #24292f; line-height: 1.6; }}
+h2 {{ border-bottom: 1px solid #d0d7de; padding-bottom: 0.3em; margin-top: 2em; }}
+h3 {{ margin-top: 1.5em; }}
+h4 {{ margin-top: 1em; }}
+a {{ color: #0969da; text-decoration: none; }}
+a:hover {{ text-decoration: underline; }}
+code {{ background: #f6f8fa; padding: 0.2em 0.4em; border-radius: 3px; font-size: 85%; }}
+pre {{ background: #f6f8fa; padding: 1em; border-radius: 6px; overflow: auto; }}
+blockquote {{ border-left: 4px solid #d0d7de; padding-left: 1em; color: #656d76; margin: 1em 0; }}
 </style></head><body>
 {html_body}
 </body></html>"""
@@ -89,7 +115,7 @@ a {{ color: #0969da; }}
     try:
         server.login(username, password)
         server.send_message(msg)
-        print(f"[NOTIFY] ✅ Email sent to {', '.join(to_addrs)}")
+        print(f"[NOTIFY] \u2705 Email sent to {', '.join(to_addrs)}")
     finally:
         server.quit()
 
