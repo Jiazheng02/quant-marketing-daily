@@ -1,0 +1,26 @@
+# Quant Marketing Daily — Python 依赖
+# Python >= 3.10
+
+# RSS 解析
+feedparser>=6.0
+
+# HTTP 请求（Semantic Scholar API / RSS / SSRN）
+requests>=2.31
+
+# HTML 解析（SSRN working paper 爬取）
+beautifulsoup4>=4.12
+lxml>=5.0
+
+# INFORMS / Marketing Science 原文页补抓（静态 fetch 默认启用；浏览器 stealth 通过 .env 开关）
+scrapling[fetchers]>=0.4.9
+# Playwright（可选）：MktSci 完整摘要补抓，持久化 profile 绕过 Cloudflare
+playwright>=1.40
+
+# DeepSeek API 中文摘要
+openai>=1.0
+
+# 环境变量自动加载（.env → os.environ）
+python-dotenv>=1.0
+
+# 测试
+pytest>=8.0

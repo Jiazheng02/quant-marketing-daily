@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# IDE / test artifacts
+.pytest_cache/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Project — 运行时缓存文件不提交
+data/mktsci_abstracts.json
+data/pending_mktsci.json
+data/.pw-profile/
+
+# 日报输出与 DOI 注册表需纳入版本控制（GitHub Actions 回写）
+# 仅保留 output/.gitkeep 防止空目录丢失
+
+# Backups
+*.bak
+
+# Environment
+.env
+.env.local

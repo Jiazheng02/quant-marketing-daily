@@ -1,0 +1,72 @@
+name: Quant Marketing Daily
+
+on:
+  schedule:
+    # UTC 01:00 = 北京时间 09:00
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: daily-run
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 保留 data/ 和 output/ 的跨次运行状态
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          # Playwright 浏览器（MktSci 摘要有时会用到，CI 中headless 大概率被 Cloudflare 拦截，但保留以避免 import 报错）
+          playwright install chromium
+
+      - name: Run daily pipeline
+        env:
+          # CI 中强制 headless + 跳过 Playwright MktSci（Cloudflare 会拦截）
+          INFORMS_PW_HEADLESS: "1"
+        run: python -m src.fetch
+
+      - name: Send email notification
+        # 仅当 SMTP 配置存在时才发邮件
+        if: ${{ secrets.SMTP_SERVER != '' }}
+        env:
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT || '587' }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM || secrets.SMTP_USERNAME }}
+          NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
+        run: python -m src.notify_email
+
+      - name: Commit daily report & seen_dois
+        run: |
+          git config user.name "quant-marketing-daily[bot]"
+          git config user.email "bot@quant-mkt-daily.local"
+
+          git pull --rebase origin main
+
+          git add output/ data/
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Daily report $(TZ=Asia/Shanghai date +%Y-%m-%d)"
+            git push origin main || {
+              echo "Push failed, retrying after rebase..."
+              git pull --rebase origin main
+              git push origin main
+            }
+          fi
