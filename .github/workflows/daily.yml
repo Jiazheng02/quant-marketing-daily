@@ -40,9 +40,17 @@ jobs:
           INFORMS_PW_HEADLESS: "1"
         run: python -m src.fetch
 
+      - name: Check SMTP config
+        id: check-smtp
+        run: |
+          if [ -n "${{ secrets.SMTP_SERVER }}" ]; then
+            echo "enabled=true" >> $GITHUB_OUTPUT
+          else
+            echo "enabled=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Send email notification
-        # 仅当 SMTP 配置存在时才发邮件
-        if: ${{ secrets.SMTP_SERVER != '' }}
+        if: steps.check-smtp.outputs.enabled == 'true'
         env:
           SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
           SMTP_PORT: ${{ secrets.SMTP_PORT || '587' }}
