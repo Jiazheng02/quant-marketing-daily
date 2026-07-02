@@ -37,6 +37,10 @@ def send_email(report_path: str) -> None:
     from_addr = os.environ.get("SMTP_FROM", username)
     to_addrs = [a.strip() for a in os.environ["NOTIFY_EMAIL"].split(",") if a.strip()]
 
+    # Sanitize password: remove non-ASCII chars and whitespace (common when copying from browser)
+    import unicodedata
+    password = unicodedata.normalize("NFKC", password).strip().replace(" ", "")
+
     if not to_addrs:
         print("[NOTIFY] No recipient configured (NOTIFY_EMAIL is empty). Skipping.")
         return
