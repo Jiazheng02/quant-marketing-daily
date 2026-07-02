@@ -65,16 +65,10 @@ jobs:
           git config user.name "quant-marketing-daily[bot]"
           git config user.email "bot@quant-mkt-daily.local"
 
-          git pull --rebase origin main
-
-          git add output/ data/
+          git add output/ data/seen_dois.json
           if git diff --staged --quiet; then
             echo "No changes to commit."
           else
             git commit -m "Daily report $(TZ=Asia/Shanghai date +%Y-%m-%d)"
-            git push origin main || {
-              echo "Push failed, retrying after rebase..."
-              git pull --rebase origin main
-              git push origin main
-            }
+            git push origin main
           fi
