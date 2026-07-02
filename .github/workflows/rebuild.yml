@@ -1,0 +1,64 @@
+name: Rebuild Report
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          playwright install chromium
+
+      - name: Run pipeline with --rebuild
+        env:
+          INFORMS_PW_HEADLESS: "1"
+        run: python -m src.fetch --rebuild
+
+      - name: Check SMTP config
+        id: check-smtp
+        run: |
+          if [ -n "${{ secrets.SMTP_SERVER }}" ]; then
+            echo "enabled=true" >> $GITHUB_OUTPUT
+          else
+            echo "enabled=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send email notification
+        if: steps.check-smtp.outputs.enabled == 'true'
+        env:
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT || '587' }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM || secrets.SMTP_USERNAME }}
+          NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
+        run: python -m src.notify_email
+
+      - name: Commit daily report & seen_dois
+        run: |
+          git config user.name "quant-marketing-daily[bot]"
+          git config user.email "bot@quant-mkt-daily.local"
+
+          git add output/ data/seen_dois.json
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Rebuild report $(TZ=Asia/Shanghai date +%Y-%m-%d)"
+            git push origin main
+          fi
