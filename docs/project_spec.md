@@ -44,13 +44,13 @@ Quantitative Marketing 研究者，需要每天了解领域内的最新发表。
 ### 2.1 主力：GitHub Actions → Markdown 日报（P0，已完成）
 
 ```
-GitHub Actions (每日定时 cron: 0 1 * * * UTC = 北京时间 09:00)
+GitHub Actions (每日定时 cron: 7 9 * * *, timezone: Asia/Shanghai = 北京时间 09:07)
 → 10 步管线抓取 + 生成 Markdown
 → 产出 output/YYYY-MM-DD.md
 → commit seen_dois.json 回 main
 ```
 
-> **时区约定**：Actions cron 用 UTC，但日报文件名、日期过滤窗口均以 **Asia/Shanghai (UTC+8)** 为准。所有日期计算使用 `zoneinfo.ZoneInfo("Asia/Shanghai")`。
+> **时区约定**：Actions schedule 显式使用 `timezone: Asia/Shanghai`；日报文件名、日期过滤窗口也均以 **Asia/Shanghai (UTC+8)** 为准。所有日期计算使用 `zoneinfo.ZoneInfo("Asia/Shanghai")`。
 
 #### 状态持久化
 

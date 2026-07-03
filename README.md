@@ -95,7 +95,7 @@ _2026-06-01 ~ 2026-07-02 · 20 篇新论文 · 4 个来源_
 
 ```
 quant-marketing-daily/
-├── .github/workflows/daily.yml         # GitHub Actions 自动调度（UTC 1:00）
+├── .github/workflows/daily.yml         # GitHub Actions 自动调度（北京时间 09:07）
 ├── docs/
 │   └── project_spec.md                 # 唯一规格与验收标准
 ├── src/
@@ -212,7 +212,7 @@ python -m src.fetch --rebuild
 | `SMTP_FROM` | 可选，默认等于 `SMTP_USERNAME` |
 | `NOTIFY_EMAIL` | 可选，收件地址，多个用逗号分隔 |
 
-调度：UTC 1:00（北京时间 09:00），cron `0 1 * * *`。已配置 `concurrency: daily-run` 防并发。
+调度：北京时间 09:07，cron `7 9 * * *` + `timezone: Asia/Shanghai`。已配置 `concurrency: daily-run` 防并发。避开整点可以降低 GitHub Actions schedule 延迟或丢弃的概率。
 
 ### 4. 无 GitHub Actions 时
 
