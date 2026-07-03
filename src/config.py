@@ -38,35 +38,35 @@ JOURNALS = {
         "rss": "https://journals.sagepub.com/action/showFeed?jc=jmxa&type=etoc&feed=rss",
         "publisher": "Sage",
         "needs_filter": False,
-        "priority": 1,  # 截断排序用（越小越优先）
+        "priority": 5,  # 截断排序用（越小越优先）
     },
     "JMR": {
         "name": "Journal of Marketing Research",
         "rss": "https://journals.sagepub.com/action/showFeed?jc=mrja&type=etoc&feed=rss",
         "publisher": "Sage",
         "needs_filter": False,
-        "priority": 2,
+        "priority": 4,
     },
     "MktSci": {
         "name": "Marketing Science",
         "rss": "https://pubsonline.informs.org/action/showFeed?jc=mksc&type=etoc&feed=rss",
         "publisher": "INFORMS",
         "needs_filter": False,
-        "priority": 3,
+        "priority": 1,
     },
     "QME": {
         "name": "Quantitative Marketing and Economics",
         "rss": "https://link.springer.com/search.rss?facet-content-type=Article&facet-journal-id=11129",
         "publisher": "Springer",
         "needs_filter": False,
-        "priority": 4,
+        "priority": 2,
     },
     "MngSci": {
         "name": "Management Science",
         "rss": "https://pubsonline.informs.org/action/showFeed?jc=mnsc&type=etoc&feed=rss",
         "publisher": "INFORMS",
         "needs_filter": True,
-        "priority": 5,
+        "priority": 3,
     },
     "SSRN": {
         "name": "SSRN Working Papers",
@@ -77,8 +77,8 @@ JOURNALS = {
     },
 }
 
-# 渲染顺序
-JOURNAL_ORDER = ["JM", "JMR", "MktSci", "QME", "MngSci", "SSRN"]
+# 渲染顺序：quant-first，避免 behavioral-heavy 全刊营销内容压过核心 quant 论文。
+JOURNAL_ORDER = ["MktSci", "QME", "MngSci", "JMR", "JM", "SSRN"]
 
 # ---------------------------------------------------------------------------
 # 出版商 → 详情页 URL 模板

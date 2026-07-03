@@ -103,17 +103,18 @@ def filter_seen_and_date(papers: list[dict], ignore_seen: bool = False) -> list[
 
 
 # ---------------------------------------------------------------------------
-# 30 篇截断 + 稳定排序
+# 30 篇 relevance-first 截断
 # ---------------------------------------------------------------------------
 def truncate_papers(
     papers: list[dict], max_count: int = 30
 ) -> tuple[list[dict], int]:
-    """按四级稳定排序截断。
+    """按 quant relevance 优先截断。
 
-    排序：online_date 降 → 期刊优先级 → MngSci 营销加权 → 标题字母序
+    排序：有 online_date → quant relevance → 期刊优先级 → online_date 降 →
+    MngSci 营销 tie-breaker → 标题字母序
 
-    MngSci 营销加权：标题含 marketing 关键词 → 在同日期同期刊内优先，
-    避免营销论文因字母序被非营销论文挤出 30 篇上限。
+    quant relevance 使用标题级信号，确保真正相关的 quant paper 在摘要抓取前
+    不会被 behavioral/psych paper 挤出 30 篇候选上限。
     """
     if len(papers) <= max_count:
         return papers, 0
@@ -122,6 +123,7 @@ def truncate_papers(
 
     # 延迟导入，避免循环依赖
     from src.filter_mngsci import mngsci_marketing_boost
+    from src.relevance import paper_relevance_sort_key
 
     def sort_key(p: dict):
         od = p.get("online_date", "")
@@ -130,10 +132,11 @@ def truncate_papers(
             date_tuple = (-int(parts[0]), -int(parts[1]), -int(parts[2]))
         else:
             date_tuple = (0, 0, 0)
+        relevance_key = paper_relevance_sort_key(p, include_abstract=False)
         prio = priority.get(p.get("journal", ""), 99)
         boost = mngsci_marketing_boost(p)
         title = p.get("title", "")
-        return (0 if od else 1, date_tuple, prio, boost, title)
+        return (0 if od else 1, relevance_key, prio, date_tuple, boost, title)
 
     sorted_papers = sorted(papers, key=sort_key)
     truncated = sorted_papers[:max_count]

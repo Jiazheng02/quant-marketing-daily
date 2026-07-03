@@ -6,7 +6,7 @@ from unittest.mock import patch
 from datetime import datetime
 
 from src.config import TZ
-from src.dedup import compute_fetch_from, filter_seen_and_date
+from src.dedup import compute_fetch_from, filter_seen_and_date, truncate_papers
 
 
 def test_window_first_7_days():
@@ -60,9 +60,38 @@ def test_filter_seen_and_date_ignore_seen(monkeypatch):
     assert [p["id"] for p in result] == ["doi:seen"]
 
 
+def test_truncate_preserves_quant_relevant_papers_before_behavioral():
+    papers = [
+        {
+            "id": "doi:behavioral-new",
+            "journal": "JM",
+            "title": "Language Framing and Hand Gestures in Consumer Identity",
+            "online_date": "2026-07-03",
+        },
+        {
+            "id": "doi:llm-rec",
+            "journal": "JMR",
+            "title": "LLM-Based Recommendation and Dynamic Pricing in Online Marketplaces",
+            "online_date": "2026-06-20",
+        },
+        {
+            "id": "doi:demand",
+            "journal": "QME",
+            "title": "Demand Estimation with Discrete Choice Models",
+            "online_date": "2026-06-19",
+        },
+    ]
+
+    result, dropped = truncate_papers(papers, max_count=2)
+
+    assert dropped == 1
+    assert {p["id"] for p in result} == {"doi:demand", "doi:llm-rec"}
+
+
 if __name__ == "__main__":
     test_window_first_7_days()
     test_window_day_7()
     test_window_day_8()
     test_window_aug_1()
+    test_truncate_preserves_quant_relevant_papers_before_behavioral()
     print("All date filter boundary tests passed!")

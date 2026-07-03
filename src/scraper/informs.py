@@ -3,8 +3,8 @@ INFORMS 出版商摘要抓取（MktSci / MngSci）。
 
 策略：
   - MktSci: 优先读取本地完整摘要缓存；缓存缺失时用 Crossref
-    快速判断，若只拿到短摘要则尝试 Scrapling 原文页补全，再用
-    Semantic Scholar 兜底
+    快速判断，若只拿到短摘要则尝试 Playwright 持久化 profile 补全，
+    失败后再尝试 Scrapling 原文页补全，最后用 Semantic Scholar 兜底
   - MngSci: Crossref JSON API 获取摘要 + "accepted by" 元数据
   - pubsonline.informs.org 有 Cloudflare/Turnstile 防护，Scrapling 补抓必须
     是 best-effort，失败后保留短摘要并写入待处理队列
@@ -18,6 +18,7 @@ import urllib.error
 
 from src.scraper.informs_page import (
     MIN_FULL_ABSTRACT_LENGTH,
+    fetch_mktsci_with_playwright,
     fetch_full_abstract_with_scrapling,
 )
 
@@ -220,7 +221,6 @@ def scrape_abstract(doi: str, session=None, journal: str = "") -> tuple[str | No
         # MktSci 短摘要检测 → Playwright 持久化 profile 绕过 Cloudflare，
         # 失败再 Scrapling 原文页补抓，仍失败则标记 pending
         if abstract and is_mktsci and len(abstract) < _SHORT_ABSTRACT_THRESHOLD:
-            from src.scraper.informs_page import fetch_mktsci_with_playwright
             full_abstract = fetch_mktsci_with_playwright(doi, min_length=_SHORT_ABSTRACT_THRESHOLD)
             if full_abstract:
                 save_to_mktsci_cache(doi, full_abstract)
@@ -239,7 +239,6 @@ def scrape_abstract(doi: str, session=None, journal: str = "") -> tuple[str | No
             return abstract, accepted_by
 
     if is_mktsci:
-        from src.scraper.informs_page import fetch_mktsci_with_playwright
         full_abstract = fetch_mktsci_with_playwright(doi, min_length=_SHORT_ABSTRACT_THRESHOLD)
         if full_abstract:
             save_to_mktsci_cache(doi, full_abstract)

@@ -74,6 +74,8 @@ MARKETING_KEYWORDS = [
     "online review", "rating", "user-generated content",
     "recommendation", "recommender",
     "search", "platform", "two-sided market", "network effect",
+    "LLM", "large language model", "large language models", "generative AI",
+    "recommendations", "recommender system",
     # Engagement / Loyalty
     "loyalty", "loyalty program",
     "word of mouth", "subscription", "freemium",
@@ -106,23 +108,23 @@ NON_MARKETING_KEYWORDS = [
 
 def _keyword_score(title: str, abstract: str | None) -> tuple[int, int]:
     text = (title + " " + (abstract or "")).lower()
-    pos = sum(1 for kw in MARKETING_KEYWORDS if kw in text)
-    neg = sum(1 for kw in NON_MARKETING_KEYWORDS if kw in text)
+    pos = sum(1 for kw in MARKETING_KEYWORDS if kw.lower() in text)
+    neg = sum(1 for kw in NON_MARKETING_KEYWORDS if kw.lower() in text)
     return pos, neg
 
 
 # ---------------------------------------------------------------------------
-# 截断排序加权（标题关键词预判，用于截断前优先保留 marketing 论文）
+# MngSci 截断排序 tie-breaker（标题关键词预判）
 # ---------------------------------------------------------------------------
 def mngsci_marketing_boost(paper: dict) -> int:
     """MngSci 论文标题级别的 marketing 信号强度。
 
-    仅用于截断排序的 tiebreaker——不依赖 full abstract 或 accepted_by。
-    仅凭标题中的 marketing 关键词判断是否有保留价值。
+    仅用于 relevance-first 截断后的同层 tie-breaker，不依赖 full abstract
+    或 accepted_by。真正的 Management Science 部门过滤仍在摘要抓取后执行。
 
     Returns:
-        0 → 有 marketing 信号（排序优先）
-        1 → 无信号（排序靠后）
+        0 → 有 marketing 标题信号（同层排序优先）
+        1 → 无标题信号（同层排序靠后）
         非 MngSci 论文一律返回 0（不影响其他期刊的排序）
     """
     if paper.get("journal") != "MngSci":

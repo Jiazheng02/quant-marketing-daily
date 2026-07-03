@@ -60,7 +60,30 @@ def test_mktsci_short_crossref_uses_scrapling_full_fetch(monkeypatch):
 
     monkeypatch.setattr(informs, "load_mktsci_cache", lambda: {})
     monkeypatch.setattr(informs, "_crossref_fetch", lambda doi: {"abstract": short, "accepted_by": None})
+    monkeypatch.setattr(informs, "fetch_mktsci_with_playwright", lambda doi, min_length: None)
     monkeypatch.setattr(informs, "fetch_full_abstract_with_scrapling", lambda doi, min_length: FULL_ABSTRACT)
+    monkeypatch.setattr(informs, "save_to_mktsci_cache", lambda doi, abstract: saved.update({doi: abstract}))
+    monkeypatch.setattr(informs, "save_pending_mktsci", lambda doi: saved.update({"pending": doi}))
+
+    result = informs.scrape_abstract("10.1287/mksc.2024.1138", journal="MktSci")
+
+    assert result == (FULL_ABSTRACT, None)
+    assert saved["10.1287/mksc.2024.1138"] == FULL_ABSTRACT
+    assert "pending" not in saved
+
+
+def test_mktsci_short_crossref_uses_playwright_full_fetch(monkeypatch):
+    saved = {}
+    short = "This paper examines coalition loyalty programs and price discrimination."
+
+    monkeypatch.setattr(informs, "load_mktsci_cache", lambda: {})
+    monkeypatch.setattr(informs, "_crossref_fetch", lambda doi: {"abstract": short, "accepted_by": None})
+    monkeypatch.setattr(informs, "fetch_mktsci_with_playwright", lambda doi, min_length: FULL_ABSTRACT)
+    monkeypatch.setattr(
+        informs,
+        "fetch_full_abstract_with_scrapling",
+        lambda doi, min_length: (_ for _ in ()).throw(AssertionError("Scrapling should not run")),
+    )
     monkeypatch.setattr(informs, "save_to_mktsci_cache", lambda doi, abstract: saved.update({doi: abstract}))
     monkeypatch.setattr(informs, "save_pending_mktsci", lambda doi: saved.update({"pending": doi}))
 
@@ -77,6 +100,7 @@ def test_mktsci_short_crossref_falls_back_to_pending(monkeypatch):
 
     monkeypatch.setattr(informs, "load_mktsci_cache", lambda: {})
     monkeypatch.setattr(informs, "_crossref_fetch", lambda doi: {"abstract": short, "accepted_by": None})
+    monkeypatch.setattr(informs, "fetch_mktsci_with_playwright", lambda doi, min_length: None)
     monkeypatch.setattr(informs, "fetch_full_abstract_with_scrapling", lambda doi, min_length: None)
     monkeypatch.setattr(informs, "save_pending_mktsci", lambda doi: saved.update({"pending": doi}))
 

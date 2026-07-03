@@ -1,5 +1,5 @@
 """
-MngSci 关键词过滤测试。
+MngSci accepted_by + keyword fallback 过滤测试。
 """
 
 from src.filter_mngsci import filter_mngsci, _keyword_score
@@ -82,10 +82,22 @@ def test_accepted_by_finance_dropped():
     assert len(result) == 0, f"Expected 0, got {len(result)}"
 
 
+def test_llm_recommendation_keywords_count_as_marketing_signal():
+    """LLM / recommendation 是 quant-marketing 关注关键词。"""
+    pos, neg = _keyword_score(
+        "LLM Recommendation Systems in Online Marketplaces",
+        "We study recommendation and personalization on a digital platform.",
+    )
+
+    assert pos >= 2
+    assert neg == 0
+
+
 if __name__ == "__main__":
     test_marketing_paper_kept()
     test_finance_paper_dropped()
     test_ambiguous_dropped_without_accepted_by()
     test_accepted_by_marketing_kept()
     test_accepted_by_finance_dropped()
+    test_llm_recommendation_keywords_count_as_marketing_signal()
     print("All MngSci filter tests passed!")

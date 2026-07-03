@@ -14,6 +14,8 @@
 
 > MngSci 是综合管理学期刊，含 Finance / OR / OB 等多部门论文。管线通过 Crossref `accepted_by` 字段识别 marketing 部门，不可用时以标题+摘要关键词比分兜底（pos-neg ≥ 2）。不再区分 `[uncertain]` 分级。
 
+截断前会先按 quant relevance 保留更相关的论文，避免 consumer psychology / behavioral marketing 论文挤掉 pricing、platform、structural model、causal inference、LLM、recommendation 等方向的论文。期刊保留优先级为：MktSci → QME → MngSci → JMR → JM → SSRN。
+
 ## 日报预览
 
 ```markdown
@@ -61,7 +63,7 @@ _2026-06-01 ~ 2026-07-02 · 20 篇新论文 · 4 个来源_
         └─────────────┬──────────────┘
                       ▼
         ┌────────────────────────────┐
-        │  [4] 30 篇截断 + 四级排序   │  ← 含 MngSci 营销加权
+        │  [4] 30 篇截断 + 相关性排序 │  ← 有日期 → quant relevance → 期刊优先级
         └─────────────┬──────────────┘
                       ▼
         ┌────────────────────────────┐
@@ -101,8 +103,9 @@ quant-marketing-daily/
 │   ├── fetch.py                        # 主入口，10 步管线编排 + 前后诊断
 │   ├── config.py                       # 期刊配置、LLM、时区、性能约束
 │   │
-│   ├── dedup.py                        # [2][3][4] DOI 去重 + 日期窗口 + seen + 30 篇截断排序
+│   ├── dedup.py                        # [2][3][4] DOI 去重 + 日期窗口 + seen + relevance-first 截断
 │   ├── filter_mngsci.py                # [6] MngSci → Marketing 双策略过滤（accepted_by + 关键词比分）
+│   ├── relevance.py                    # [4] Quant relevance 打分（LLM/recommendation 等）
 │   ├── translate.py                    # [7] LLM 批量标题翻译（DeepSeek → Ollama 回落）
 │   ├── abstract.py                     # [8] LLM 双层摘要（逐篇生成，避免串块）
 │   ├── render.py                       # [9] Markdown 日报渲染（8 行 + details 折叠 + TOC）
@@ -132,6 +135,7 @@ quant-marketing-daily/
 │   ├── test_filter_mngsci.py
 │   ├── test_informs_scraper.py
 │   ├── test_llm.py
+│   ├── test_relevance.py
 │   └── test_render.py
 ├── data/
 │   ├── seen_dois.json                  # DOI 注册表（须持久保留，step [10] commit）
@@ -180,7 +184,7 @@ INFORMS_STEALTH_HEADLESS=0
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 
-# 首跑建议 dry-run：验证 RSS 元数据，不写 seen_dois
+# 首跑建议 dry-run：验证 RSS 元数据和截断候选，不写 seen_dois
 python -m src.fetch --dry-run
 
 # 确认无误后正式运行
@@ -225,7 +229,7 @@ python -m src.fetch [--dry-run] [--rebuild] [--include-ssrn]
 
 | Flag | 说明 |
 |------|------|
-| `--dry-run` | 仅 RSS 发现 + 去重 + 日期过滤，不抓摘要、不写 seen_dois |
+| `--dry-run` | 仅 RSS 发现 + 去重 + 日期过滤 + relevance 截断，不抓摘要、不写 seen_dois |
 | `--rebuild` | 忽略 `seen_dois` 重建当日窗口日报，不写 seen_dois |
 | `--include-ssrn` | 启用 SSRN Working Paper 抓取（P2，默认关闭） |
 

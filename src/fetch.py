@@ -6,9 +6,9 @@ Quant Marketing Daily — 主入口。
   [1] RSS 发现 → 论文元数据（不含摘要）
   [2] DOI 标准化 + 去重（同一次运行内）
   [3] seen + date 预过滤
-  [4] 30 篇截断 + 稳定排序
+  [4] 30 篇 relevance-first 截断
   [5] 摘要抓取 → 从出版商详情页 HTML 提取
-  [6] MngSci → Marketing 关键词过滤（先过滤减少 LLM 工作量）
+  [6] MngSci → Marketing accepted_by + 关键词兜底过滤（先过滤减少 LLM 工作量）
   [7] 标题翻译 → 中文译名（LLM batch）
   [8] Abstract 处理 → 一句话总结 + 完整中文翻译（LLM per-paper）
   [9] 渲染 + 保存 Markdown
@@ -18,7 +18,7 @@ Quant Marketing Daily — 主入口。
 
 用法:
   python -m src.fetch                  # 正常模式
-  python -m src.fetch --dry-run        # 仅 RSS + 去重 + 日期过滤，不抓摘要/不写 seen
+  python -m src.fetch --dry-run        # 仅 RSS + 去重 + 日期过滤 + relevance 截断，不抓摘要/不写 seen
   python -m src.fetch --rebuild        # 忽略 seen 重建今天日报，不写 seen
   python -m src.fetch --include-ssrn   # P0 + SSRN（P2 功能）
 
@@ -51,7 +51,7 @@ def main() -> None:
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="仅 RSS 解析 + 去重 + 日期过滤，不抓摘要、不写 seen_dois、不产日报",
+        help="仅 RSS 解析 + 去重 + 日期过滤 + relevance 截断，不抓摘要、不写 seen_dois、不产日报",
     )
     parser.add_argument(
         "--include-ssrn",
@@ -119,7 +119,7 @@ def main() -> None:
         return
 
     # =====================================================================
-    # [4] 截断（30 篇上限）
+    # [4] relevance-first 截断（30 篇上限）
     # =====================================================================
     candidates, truncated = truncate_papers(candidates, MAX_CANDIDATE_PAPERS)
 
@@ -147,9 +147,9 @@ def main() -> None:
     candidates = scrape_abstracts(candidates)
 
     # =====================================================================
-    # [6] MngSci 关键词过滤（先过滤，减少 LLM 翻译/摘要开销）
+    # [6] MngSci accepted_by + 关键词兜底过滤（先过滤，减少 LLM 翻译/摘要开销）
     # =====================================================================
-    print("\n[6/10] MngSci → Marketing 关键词过滤")
+    print("\n[6/10] MngSci → Marketing accepted_by + 关键词兜底过滤")
     candidates = filter_mngsci(candidates)
 
     # =====================================================================
