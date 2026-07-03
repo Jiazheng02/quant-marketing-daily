@@ -212,6 +212,8 @@ python -m src.fetch --rebuild
 | `SMTP_FROM` | 可选，默认等于 `SMTP_USERNAME` |
 | `NOTIFY_EMAIL` | 可选，收件地址，多个用逗号分隔 |
 
+GitHub-hosted runner 不会读取你的本地 `.env`，也不能使用你本机的 Ollama；Actions 中的 LLM 主要依赖 `DEEPSEEK_API_KEY` secret。`daily.yml` 和 `rebuild.yml` 会把这些 secrets 注入到 `python -m src.fetch`。
+
 调度：北京时间 09:07，cron `7 9 * * *` + `timezone: Asia/Shanghai`。已配置 `concurrency: daily-run` 防并发。避开整点可以降低 GitHub Actions schedule 延迟或丢弃的概率。
 
 ### 4. 无 GitHub Actions 时

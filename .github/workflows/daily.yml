@@ -47,6 +47,8 @@ jobs:
 
       - name: Run daily pipeline
         env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_BASE_URL: ${{ secrets.DEEPSEEK_BASE_URL || 'https://api.deepseek.com' }}
           # CI 中强制 headless + 跳过 Playwright MktSci（Cloudflare 会拦截）
           INFORMS_PW_HEADLESS: "1"
         run: |

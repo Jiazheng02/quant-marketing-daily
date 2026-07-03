@@ -241,7 +241,7 @@ OLLAMA_MODEL=qwen2.5:7b
 OLLAMA_TIMEOUT=300
 ```
 
-本地开发用 `.env`，GitHub Actions 用 Secrets。
+本地开发用 `.env`，GitHub Actions 用 Secrets。GitHub-hosted runner 不读取本地 `.env`，也不能访问本机 Ollama；`daily.yml` 和 `rebuild.yml` 必须把 `DEEPSEEK_API_KEY` / `DEEPSEEK_BASE_URL` 从 repository secrets 注入到 pipeline。
 
 ### 6.3 双层输出
 
