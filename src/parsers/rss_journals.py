@@ -249,20 +249,32 @@ def parse_single_rss(journal_key: str, max_entries: int | None = None) -> list[d
     papers = []
 
     try:
-        feed = feedparser.parse(
+        import requests
+
+        resp = requests.get(
             journal["rss"],
-            agent=(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/131.0.0.0 Safari/537.36"
-            ),
-            request_headers={
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/131.0.0.0 Safari/537.36"
+                ),
                 "Accept": "application/rss+xml, application/xml, text/xml, */*",
                 "Accept-Language": "en-US,en;q=0.9",
+                "Accept-Encoding": "gzip, deflate, br",
+                "Connection": "keep-alive",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "none",
+                "Sec-Fetch-User": "?1",
+                "Cache-Control": "max-age=0",
             },
+            timeout=30,
         )
+        resp.raise_for_status()
+        feed = feedparser.parse(resp.text)
     except Exception as e:
-        print(f"[WARN] feedparser failed for {journal_key}: {e}")
+        print(f"[WARN] RSS fetch failed for {journal_key}: {e}")
         return papers
 
     for entry in feed.entries[:max_entries]:
