@@ -128,7 +128,7 @@ SEEN_DOIS_FILE = os.path.join(DATA_DIR, "seen_dois.json")
 # ---------------------------------------------------------------------------
 # 性能约束
 # ---------------------------------------------------------------------------
-MAX_CANDIDATE_PAPERS = 30       # 每日最大候选数
+MAX_CANDIDATE_PAPERS = 50       # 每日最大候选数（Crossref 回退后需更大容量）
 SCRAPE_DELAY_SEC = 2.0          # 请求间隔
 SCRAPE_TIMEOUT_SEC = 15         # 单次超时
 SCRAPE_RETRIES = 2              # 重试次数
