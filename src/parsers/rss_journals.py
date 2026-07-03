@@ -15,7 +15,13 @@ from typing import Optional
 
 import feedparser
 
-from src.config import JOURNALS, RSS_MAX_ENTRIES
+from src.config import JOURNALS, RSS_MAX_ENTRIES, today_str
+
+# INFORMS journals ISSN mapping (Crossref fallback when RSS blocked by Cloudflare)
+_INFORMS_ISSN = {
+    "MktSci": "0732-2399",
+    "MngSci": "0025-1909",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -229,6 +235,107 @@ def _paper_id(doi: Optional[str], title: str, journal_key: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Crossref 回退（INFORMS RSS 被 Cloudflare 403 时使用）
+# ---------------------------------------------------------------------------
+
+def _fetch_informs_crossref(journal_key: str, max_entries: int = 50) -> list[dict]:
+    """Fetch INFORMS papers via Crossref API when RSS is blocked by Cloudflare."""
+    import requests
+
+    issn = _INFORMS_ISSN.get(journal_key)
+    if not issn:
+        print(f"[Crossref] No ISSN mapping for {journal_key}")
+        return []
+
+    journal = JOURNALS[journal_key]
+    today = today_str()
+
+    try:
+        url = (
+            f"https://api.crossref.org/works"
+            f"?filter=issn:{issn},from-pub-date:2026-06-01"
+            f"&rows={max_entries}&sort=published&order=desc"
+            f"&mailto=quant-marketing-daily@github.io"
+        )
+        resp = requests.get(url, timeout=20)
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as e:
+        print(f"[Crossref] API request failed for {journal_key}: {e}")
+        return []
+
+    items = data.get("message", {}).get("items", [])
+    if not items:
+        print(f"[Crossref] No items returned for {journal_key}")
+        return []
+
+    papers = []
+    for item in items:
+        doi = item.get("DOI", "").strip()
+        if not doi:
+            continue
+
+        title_list = item.get("title", [])
+        title = title_list[0].strip() if title_list else ""
+        if not title:
+            title = item.get("original-title", [None])[0] or ""
+
+        if not title or not doi:
+            continue
+
+        # Authors
+        authors = []
+        for a in item.get("author", []):
+            given = a.get("given", "")
+            family = a.get("family", "")
+            name = f"{given} {family}".strip()
+            if name:
+                authors.append(name)
+
+        # Dates
+        pub_date = item.get("published-print", {}).get("date-parts", [[None]])[0]
+        online_date_parts = item.get("published-online", {}).get("date-parts", [[None]])[0]
+        created_date = item.get("created", {}).get("date-parts", [[None]])[0]
+
+        def _fmt_date(parts):
+            if parts and parts[0]:
+                return f"{parts[0]:04d}-{parts[1]:02d}-{parts[2]:02d}" if len(parts) >= 3 else ""
+            return ""
+
+        coverdate = _fmt_date(pub_date or online_date_parts or created_date)
+        online_date = _fmt_date(online_date_parts or pub_date or created_date)
+
+        # Volume / issue / pages
+        volume = str(item.get("volume", "") or "")
+        issue = str(item.get("issue", "") or "")
+        page = item.get("page", "")
+
+        paper = {
+            "id": _paper_id(doi, title, journal_key),
+            "title": _clean_html(title),
+            "authors": authors,
+            "abstract": None,
+            "abstract_missing": False,
+            "journal": journal_key,
+            "journal_full": journal["name"],
+            "publisher": journal["publisher"],
+            "doi": doi,
+            "url": doi_to_url(doi),
+            "online_date": online_date,
+            "coverdate": coverdate,
+            "volume": volume or None,
+            "issue": issue or None,
+            "startpage": None,
+            "endpage": None,
+            "needs_filter": journal["needs_filter"],
+        }
+        papers.append(paper)
+
+    print(f"[Crossref] {journal['name']} ({journal_key}): {len(papers)} papers")
+    return papers
+
+
+# ---------------------------------------------------------------------------
 # 主解析函数
 # ---------------------------------------------------------------------------
 def parse_single_rss(journal_key: str, max_entries: int | None = None) -> list[dict]:
@@ -313,15 +420,27 @@ def parse_single_rss(journal_key: str, max_entries: int | None = None) -> list[d
 
 
 def fetch_all_rss() -> list[dict]:
-    """获取所有期刊 RSS，返回合并后的论文列表（不含摘要）。"""
+    """获取所有期刊 RSS，返回合并后的论文列表（不含摘要）。
+
+    INFORMS 期刊的 RSS 在 CI 中可能被 Cloudflare 403 拦截，
+    此时自动回退到 Crossref API。
+    """
     all_papers = []
     for key, cfg in JOURNALS.items():
         if not cfg.get("rss"):
             continue  # SSRN 无 RSS，走独立 fetch
+
         papers = parse_single_rss(key)
+        source = "RSS"
+
+        # INFORMS RSS blocked by Cloudflare → fallback to Crossref
+        if not papers and cfg["publisher"] == "INFORMS":
+            papers = _fetch_informs_crossref(key)
+            source = "Crossref"
+
         if papers:
-            print(f"[RSS] {cfg['name']} ({key}): {len(papers)} papers")
+            print(f"[{source}] {cfg['name']} ({key}): {len(papers)} papers")
         else:
-            print(f"[RSS] {cfg['name']} ({key}): 0 papers")
+            print(f"[{source}] {cfg['name']} ({key}): 0 papers")
         all_papers.extend(papers)
     return all_papers
