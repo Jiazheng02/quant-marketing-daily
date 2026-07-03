@@ -233,6 +233,8 @@ python -m src.fetch [--dry-run] [--rebuild] [--include-ssrn]
 | `--rebuild` | 忽略 `seen_dois` 重建当日窗口日报，不写 seen_dois |
 | `--include-ssrn` | 启用 SSRN Working Paper 抓取（P2，默认关闭） |
 
+正常模式若同一天已有一份论文数更多的日报，会保留已有文件，只更新 `seen_dois`；`--rebuild` 仍会强制重建当日日报。
+
 ## 依赖
 
 | 包 | 用途 |

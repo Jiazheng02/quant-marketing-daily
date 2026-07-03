@@ -2,7 +2,8 @@
 Markdown 渲染格式测试。
 """
 
-from src.render import _render_paper, _format_authors, _format_tags, _group_papers, render_markdown
+from src import render
+from src.render import _render_paper, _format_authors, _format_tags, _group_papers, render_markdown, save_report
 
 
 def test_format_authors_three():
@@ -206,6 +207,30 @@ def test_no_details_when_empty():
     }
     result = _render_paper(p)
     assert "<details>" not in result
+
+
+def test_save_report_preserves_richer_existing(tmp_path, monkeypatch):
+    monkeypatch.setattr(render, "OUTPUT_DIR", str(tmp_path))
+    existing = "# Quant Marketing Daily\n\n_2026-06-01 ~ 2026-07-03 · 18 篇新论文 · 4 个来源_\n"
+    smaller = "# Quant Marketing Daily\n\n_2026-06-01 ~ 2026-07-03 · 1 篇新论文 · 1 个来源_\n"
+    path = tmp_path / "2026-07-03.md"
+    path.write_text(existing, encoding="utf-8")
+
+    save_report(smaller, date_str="2026-07-03", preserve_richer_existing=True)
+
+    assert path.read_text(encoding="utf-8") == existing
+
+
+def test_save_report_overwrites_when_new_report_is_richer(tmp_path, monkeypatch):
+    monkeypatch.setattr(render, "OUTPUT_DIR", str(tmp_path))
+    existing = "# Quant Marketing Daily\n\n_2026-06-01 ~ 2026-07-03 · 1 篇新论文 · 1 个来源_\n"
+    richer = "# Quant Marketing Daily\n\n_2026-06-01 ~ 2026-07-03 · 18 篇新论文 · 4 个来源_\n"
+    path = tmp_path / "2026-07-03.md"
+    path.write_text(existing, encoding="utf-8")
+
+    save_report(richer, date_str="2026-07-03", preserve_richer_existing=True)
+
+    assert path.read_text(encoding="utf-8") == richer
 
 
 if __name__ == "__main__":

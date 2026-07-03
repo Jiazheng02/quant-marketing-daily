@@ -169,7 +169,7 @@ def main() -> None:
     # =====================================================================
     print("\n[9/10] 渲染 Markdown")
     md = render_markdown(candidates)
-    path = save_report(md)
+    path = save_report(md, preserve_richer_existing=not args.rebuild)
 
     # =====================================================================
     # [10] commit seen_dois（成功后）

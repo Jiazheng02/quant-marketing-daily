@@ -341,6 +341,7 @@ python -m src.fetch --include-ssrn  # P0 + SSRN
 - 摘要抓取在截断**之后**（步骤 5），不对已截断论文浪费 HTTP 请求
 - 截断前先按 quant relevance 保留核心论文，期刊优先级只作为同层级 tie-breaker
 - seen_dois 在管线**成功后才 commit**（步骤 10），失败不污染注册表
+- 正常模式若同一天已有论文数更多的日报，应保留已有文件，只更新 seen 状态，避免增量小报告覆盖完整 rebuild 报告
 - `--rebuild` 用于重建被覆盖/损坏的当日窗口日报，忽略 seen 但不写 seen
 
 ### 8.4 Paper Dict 数据模型

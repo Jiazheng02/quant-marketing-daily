@@ -273,13 +273,45 @@ def render_markdown(papers: list[dict]) -> str:
 # ---------------------------------------------------------------------------
 # 保存
 # ---------------------------------------------------------------------------
-def save_report(markdown: str, date_str: str | None = None) -> str:
-    """保存 Markdown 到 output/ 目录。返回文件路径。"""
+def _extract_report_count(markdown: str) -> int | None:
+    """从日报副标题中提取论文数量。"""
+    match = re.search(r"·\s*(\d+)\s*篇新论文\s*·", markdown)
+    if not match:
+        return None
+    return int(match.group(1))
+
+
+def save_report(
+    markdown: str,
+    date_str: str | None = None,
+    preserve_richer_existing: bool = False,
+) -> str:
+    """保存 Markdown 到 output/ 目录。返回文件路径。
+
+    正常增量模式可能在同一天生成比手动 rebuild 更小的报告。启用
+    preserve_richer_existing 时，如果已有同日报告论文数更多，则保留旧文件。
+    """
     if date_str is None:
         date_str = datetime.now(TZ).strftime("%Y-%m-%d")
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     path = os.path.join(OUTPUT_DIR, f"{date_str}.md")
+
+    if preserve_richer_existing and os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            existing = f.read()
+        existing_count = _extract_report_count(existing)
+        new_count = _extract_report_count(markdown)
+        if (
+            existing_count is not None
+            and new_count is not None
+            and existing_count > new_count
+        ):
+            print(
+                f"[RENDER] kept existing richer report → {path} "
+                f"({existing_count} > {new_count})"
+            )
+            return path
 
     with open(path, "w", encoding="utf-8") as f:
         f.write(markdown)
