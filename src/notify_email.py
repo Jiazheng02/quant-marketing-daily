@@ -16,6 +16,7 @@ NOTIFY_EMAIL    Recipient email address(es), comma-separated
 
 import glob
 import os
+import re
 import smtplib
 import sys
 import unicodedata
@@ -27,7 +28,6 @@ try:
     _HAS_MD = True
 except ImportError:
     _HAS_MD = False
-    import re
 
 
 def _find_latest_report() -> str | None:
