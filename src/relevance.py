@@ -4,7 +4,7 @@ Quant relevance scoring.
 This module ranks papers by the user's quantitative marketing research profile.
 It is intentionally separate from ``filter_mngsci.py``: MngSci filtering answers
 "is this a marketing paper?", while this module answers "is this a quant paper
-worth preserving before the 30-paper truncation?".
+worth preserving before the candidate-pool truncation?".
 """
 
 import re

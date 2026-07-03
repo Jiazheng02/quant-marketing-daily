@@ -103,7 +103,7 @@ def filter_seen_and_date(papers: list[dict], ignore_seen: bool = False) -> list[
 
 
 # ---------------------------------------------------------------------------
-# 30 篇 relevance-first 截断
+# 候选池 relevance-first 截断
 # ---------------------------------------------------------------------------
 def truncate_papers(
     papers: list[dict], max_count: int = 30
@@ -114,7 +114,7 @@ def truncate_papers(
     MngSci 营销 tie-breaker → 标题字母序
 
     quant relevance 使用标题级信号，确保真正相关的 quant paper 在摘要抓取前
-    不会被 behavioral/psych paper 挤出 30 篇候选上限。
+    不会被 behavioral/psych paper 挤出候选上限。
     """
     if len(papers) <= max_count:
         return papers, 0

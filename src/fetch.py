@@ -6,7 +6,7 @@ Quant Marketing Daily — 主入口。
   [1] RSS 发现 → 论文元数据（不含摘要）
   [2] DOI 标准化 + 去重（同一次运行内）
   [3] seen + date 预过滤
-  [4] 30 篇 relevance-first 截断
+  [4] 候选池 relevance-first 截断
   [5] 摘要抓取 → 从出版商详情页 HTML 提取
   [6] MngSci → Marketing accepted_by + 关键词兜底过滤（先过滤减少 LLM 工作量）
   [7] 标题翻译 → 中文译名（LLM batch）
@@ -119,7 +119,7 @@ def main() -> None:
         return
 
     # =====================================================================
-    # [4] relevance-first 截断（30 篇上限）
+    # [4] relevance-first 截断（候选上限由 MAX_CANDIDATE_PAPERS 控制）
     # =====================================================================
     candidates, truncated = truncate_papers(candidates, MAX_CANDIDATE_PAPERS)
 
