@@ -37,8 +37,30 @@ def _find_latest_report() -> str | None:
     return reports[-1] if reports else None
 
 
+def _strip_details_tags(text: str) -> str:
+    """Remove <details> / <summary> wrappers from Markdown.
+
+    Gmail does not support the HTML5 <details>/<summary> elements,
+    and when they sit inside a list item Python-Markdown treats the
+    inner content as raw HTML (so ``**Abstract:**`` never becomes
+    bold).  We strip the wrappers here so:
+    - the collapsible gimmick is gone (wouldn't work in email anyway)
+    - ``**Abstract:**`` gets processed properly by the Markdown renderer
+    """
+    # Remove opening <details> (possibly with attributes)
+    text = re.sub(r"^\s*<details[^>]*>\s*\n?", "", text, flags=re.MULTILINE)
+    # Remove <summary>...</summary> lines
+    text = re.sub(r"^\s*<summary>.*?</summary>\s*\n?", "", text, flags=re.MULTILINE)
+    # Remove closing </details>
+    text = re.sub(r"^\s*</details>\s*\n?", "", text, flags=re.MULTILINE)
+    return text
+
+
 def _render_html_md(text: str) -> str:
     """Convert Markdown to HTML (use `markdown` package if available)."""
+    # Pre-process: strip <details>/<summary> (email incompatible)
+    text = _strip_details_tags(text)
+
     if _HAS_MD:
         return markdown.markdown(
             text,
