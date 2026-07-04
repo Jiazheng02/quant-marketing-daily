@@ -50,6 +50,7 @@ jobs:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           SMTP_FROM: ${{ secrets.SMTP_FROM || secrets.SMTP_USERNAME }}
           NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
+          EMAIL_ABSTRACT_MODE: compact
         run: python -m src.notify_email
 
       - name: Commit daily report & seen_dois

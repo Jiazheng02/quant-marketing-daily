@@ -215,7 +215,7 @@ python -m src.fetch --rebuild
 
 GitHub-hosted runner 不会读取你的本地 `.env`，也不能使用你本机的 Ollama；Actions 中的 LLM 主要依赖 `DEEPSEEK_API_KEY` secret。`daily.yml` 和 `rebuild.yml` 会把这些 secrets 注入到 `python -m src.fetch`。
 
-调度：北京时间 03:07 生成日报，cron `7 3 * * *`；北京时间 09:07 发送当天日报邮件，cron `7 9 * * *`。两个 workflow 都使用 `timezone: Asia/Shanghai`。邮件 workflow 使用 `python -m src.notify_email --today`，当天报告缺失时会失败而不是误发旧报告。
+调度：北京时间 03:07 生成日报，cron `7 3 * * *`；北京时间 09:07 发送当天日报邮件，cron `7 9 * * *`。两个 workflow 都使用 `timezone: Asia/Shanghai`。邮件 workflow 使用 `python -m src.notify_email --today`，当天报告缺失时会失败而不是误发旧报告。GitHub 邮件默认设置环境变量 `EMAIL_ABSTRACT_MODE=compact`，摘要框显示为预览，避免邮件过长；可改为 `full` 或 `none`。
 
 ### 4. 无 GitHub Actions 时
 

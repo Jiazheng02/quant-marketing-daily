@@ -13,6 +13,10 @@ SMTP_USERNAME   SMTP login username
 SMTP_PASSWORD   SMTP login password (use app password, NOT regular password)
 SMTP_FROM       ``From`` address (defaults to ``SMTP_USERNAME``)
 NOTIFY_EMAIL    Recipient email address(es), comma-separated
+
+Optional
+--------
+EMAIL_ABSTRACT_MODE  ``full`` (default), ``compact``, or ``none``.
 """
 
 import argparse
@@ -62,6 +66,12 @@ def _parse_args() -> argparse.Namespace:
         help="Send today's Asia/Shanghai report only; fail if it is missing.",
     )
     return parser.parse_args()
+
+
+def _abstract_mode() -> str:
+    """Return email abstract rendering mode."""
+    mode = os.environ.get("EMAIL_ABSTRACT_MODE", "full").strip().lower()
+    return mode if mode in {"full", "compact", "none"} else "full"
 
 
 # ---------------------------------------------------------------------------
@@ -114,6 +124,8 @@ h3 { font-size: 1em; color: #586069; }
 .paper-link a { color: #0969da; }
 .paper-abstract { margin-top: 0.6em; padding: 0.6rem 0.8rem; background: #ffffff; border-radius: 4px;
                 border: 1px solid #e1e4e8; font-size: 0.92em; line-height: 1.65; color: #444; }
+.paper-abstract-compact { max-height: 13em; overflow: hidden; }
+.paper-abstract-note { margin-top: 0.35em; color: #6a737d; font-size: 0.82em; }
 .paper-abstract strong { color: #24292f; }
 .paper-abstract p { margin: 0.35em 0; }
 
@@ -331,7 +343,9 @@ def _render_paper_block(lines: list[str], start_idx: int) -> str:
         if abs_m:
             in_abstract = True
             if abs_m.group(1).strip():
-                abstract_lines.append(f"<strong>Abstract:</strong> {_md_inline_to_html(abs_m.group(1).strip())}")
+                abstract_lines.append(
+                    f"<p><strong>Abstract:</strong> {_md_inline_to_html(abs_m.group(1).strip())}</p>"
+                )
             idx += 1
             continue
 
@@ -340,7 +354,9 @@ def _render_paper_block(lines: list[str], start_idx: int) -> str:
         if zh_abs_m:
             in_abstract = True
             if zh_abs_m.group(1).strip():
-                abstract_lines.append(f"<strong>中文翻译：</strong> {_md_inline_to_html(zh_abs_m.group(1).strip())}")
+                abstract_lines.append(
+                    f"<p><strong>中文翻译：</strong> {_md_inline_to_html(zh_abs_m.group(1).strip())}</p>"
+                )
             idx += 1
             continue
 
@@ -387,8 +403,19 @@ def _render_paper_block(lines: list[str], start_idx: int) -> str:
 
     # Abstract block
     if abstract_lines:
-        abs_content = "\n".join(abstract_lines)
-        parts.append(f'<div class="paper-abstract">{abs_content}</div>')
+        mode = _abstract_mode()
+        if mode != "none":
+            abs_content = "\n".join(abstract_lines)
+            classes = "paper-abstract"
+            note = ""
+            if mode == "compact":
+                classes += " paper-abstract-compact"
+                note = (
+                    '<div class="paper-abstract-note">'
+                    "邮件中显示为摘要预览；完整内容见 Markdown 日报或原文链接。"
+                    "</div>"
+                )
+            parts.append(f'<div class="{classes}">{abs_content}</div>{note}')
 
     parts.append("</div>")  # close .paper-card
     return "\n".join(parts)
