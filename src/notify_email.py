@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Send the latest daily report via email.
+"""Send a daily report via email.
 
-Triggered by GitHub Actions after ``src.fetch`` completes.
+Triggered by GitHub Actions after ``src.fetch`` completes, or by the
+separate morning email workflow.
 Reads SMTP credentials from environment variables (see ``.env.example``).
 
 Environment variables required
@@ -14,14 +15,17 @@ SMTP_FROM       ``From`` address (defaults to ``SMTP_USERNAME``)
 NOTIFY_EMAIL    Recipient email address(es), comma-separated
 """
 
+import argparse
 import glob
 import os
 import re
 import smtplib
 import sys
 import unicodedata
+from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from zoneinfo import ZoneInfo
 
 try:
     import markdown
@@ -35,6 +39,29 @@ def _find_latest_report() -> str | None:
     pattern = os.path.join("output", "2*.md")
     reports = sorted(glob.glob(pattern))
     return reports[-1] if reports else None
+
+
+def _find_report_for_date(date_str: str) -> str | None:
+    """Return the report for ``YYYY-MM-DD`` if it exists."""
+    path = os.path.join("output", f"{date_str}.md")
+    return path if os.path.exists(path) else None
+
+
+def _today_str() -> str:
+    """Return today's date in the project timezone."""
+    return datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d")
+
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Send a daily report email.")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--date", help="Send output/YYYY-MM-DD.md for this date.")
+    group.add_argument(
+        "--today",
+        action="store_true",
+        help="Send today's Asia/Shanghai report only; fail if it is missing.",
+    )
+    return parser.parse_args()
 
 
 # ---------------------------------------------------------------------------
@@ -454,10 +481,27 @@ def send_email(report_path: str) -> None:
 
 
 if __name__ == "__main__":
-    latest = _find_latest_report()
-    if not latest:
+    args = _parse_args()
+
+    requested = False
+    if args.today:
+        date_str = _today_str()
+        report = _find_report_for_date(date_str)
+        requested = True
+    elif args.date:
+        date_str = args.date
+        report = _find_report_for_date(date_str)
+        requested = True
+    else:
+        date_str = None
+        report = _find_latest_report()
+
+    if not report:
+        if requested:
+            print(f"[NOTIFY] Requested report not found: output/{date_str}.md")
+            sys.exit(1)
         print("[NOTIFY] No daily report found in output/. Nothing to send.")
         sys.exit(0)
 
-    print(f"[NOTIFY] Sending report: {latest}")
-    send_email(latest)
+    print(f"[NOTIFY] Sending report: {report}")
+    send_email(report)

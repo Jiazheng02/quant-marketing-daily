@@ -95,7 +95,8 @@ _2026-06-01 ~ 2026-07-02 · 20 篇新论文 · 4 个来源_
 
 ```
 quant-marketing-daily/
-├── .github/workflows/daily.yml         # GitHub Actions 自动调度（北京时间 03:07）
+├── .github/workflows/daily.yml         # GitHub Actions 自动生成（北京时间 03:07）
+├── .github/workflows/notify.yml        # GitHub Actions 邮件发送（北京时间 09:07）
 ├── docs/
 │   └── project_spec.md                 # 唯一规格与验收标准
 ├── src/
@@ -199,7 +200,7 @@ python -m src.fetch --rebuild
 
 ### 3. GitHub Actions 自动部署
 
-`.github/workflows/daily.yml` 已配置。在 Settings → Secrets → Actions 添加：
+`.github/workflows/daily.yml` 和 `.github/workflows/notify.yml` 已配置。在 Settings → Secrets → Actions 添加：
 
 | Secret | 说明 |
 |--------|------|
@@ -214,7 +215,7 @@ python -m src.fetch --rebuild
 
 GitHub-hosted runner 不会读取你的本地 `.env`，也不能使用你本机的 Ollama；Actions 中的 LLM 主要依赖 `DEEPSEEK_API_KEY` secret。`daily.yml` 和 `rebuild.yml` 会把这些 secrets 注入到 `python -m src.fetch`。
 
-调度：北京时间 03:07，cron `7 3 * * *` + `timezone: Asia/Shanghai`。已配置 `concurrency: daily-run` 防并发。避开整点并提前到凌晨运行，可以降低 GitHub Actions schedule 延迟影响早晨阅读的概率。
+调度：北京时间 03:07 生成日报，cron `7 3 * * *`；北京时间 09:07 发送当天日报邮件，cron `7 9 * * *`。两个 workflow 都使用 `timezone: Asia/Shanghai`。邮件 workflow 使用 `python -m src.notify_email --today`，当天报告缺失时会失败而不是误发旧报告。
 
 ### 4. 无 GitHub Actions 时
 

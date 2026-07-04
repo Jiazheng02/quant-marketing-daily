@@ -2,7 +2,8 @@
 Quantitative Marketing Daily — 配置模块。
 
 时区约定：所有日期计算以 Asia/Shanghai (UTC+8) 为准。
-GitHub Actions schedule 使用 `timezone: Asia/Shanghai`，北京时间 03:07 运行。
+GitHub Actions schedule 使用 `timezone: Asia/Shanghai`：
+03:07 生成日报，09:07 发送邮件。
 
 API 密钥通过 .env 文件配置（由 python-dotenv 自动加载）。
 复制 .env.example → .env 并填入实际密钥即可。
