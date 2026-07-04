@@ -44,7 +44,7 @@ Quantitative Marketing 研究者，需要每天了解领域内的最新发表。
 ### 2.1 主力：GitHub Actions → Markdown 日报（P0，已完成）
 
 ```
-GitHub Actions (每日定时 cron: 7 9 * * *, timezone: Asia/Shanghai = 北京时间 09:07)
+GitHub Actions (每日定时 cron: 7 3 * * *, timezone: Asia/Shanghai = 北京时间 03:07)
 → 10 步管线抓取 + 生成 Markdown
 → 产出 output/YYYY-MM-DD.md
 → commit seen_dois.json 回 main

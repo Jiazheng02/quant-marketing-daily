@@ -2,8 +2,8 @@ name: Quant Marketing Daily
 
 on:
   schedule:
-    # 北京时间 09:07；避开 GitHub Actions 整点高峰，降低 schedule 延迟/丢弃风险。
-    - cron: "7 9 * * *"
+    # 北京时间 03:07；避开 GitHub Actions 整点高峰，并给 schedule 延迟留出早晨前缓冲。
+    - cron: "7 3 * * *"
       timezone: "Asia/Shanghai"
   workflow_dispatch:
 
