@@ -45,6 +45,7 @@ Quantitative Marketing 研究者，需要每天了解领域内的最新发表。
 
 ```
 GitHub Actions daily.yml (每日定时 cron: 7 3 * * *, timezone: Asia/Shanghai = 北京时间 03:07)
+→ 周一执行 `python -m src.fetch --rebuild`；其他天执行 `python -m src.fetch`
 → 10 步管线抓取 + 生成 Markdown
 → 产出 output/YYYY-MM-DD.md
 → SMTP 发送邮件

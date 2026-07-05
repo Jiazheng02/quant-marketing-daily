@@ -2,7 +2,7 @@ name: Quant Marketing Daily
 
 on:
   schedule:
-    # 北京时间 03:07；避开 GitHub Actions 整点高峰，并给 schedule 延迟留出早晨前缓冲。
+    # 北京时间 03:07；周一重建当日窗口日报，其他天普通增量刷新。
     - cron: "7 3 * * *"
       timezone: "Asia/Shanghai"
   workflow_dispatch:
@@ -35,14 +35,16 @@ jobs:
           # Playwright 浏览器（MktSci 摘要有时会用到，CI 中headless 大概率被 Cloudflare 拦截，但保留以避免 import 报错）
           playwright install chromium
 
-      - name: Check if Monday
+      - name: Check if Monday rebuild
         id: check-day
         run: |
           DAY=$(TZ=Asia/Shanghai date +%u)
           if [ "$DAY" = "1" ]; then
             echo "is_monday=true" >> $GITHUB_OUTPUT
+            echo "Run mode: weekly rebuild"
           else
             echo "is_monday=false" >> $GITHUB_OUTPUT
+            echo "Run mode: daily incremental refresh"
           fi
 
       - name: Run daily pipeline
