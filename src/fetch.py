@@ -3,7 +3,7 @@
 Quant Marketing Daily — 主入口。
 
 10 步管线（+ 前后诊断检查）：
-  [1] RSS 发现 → 论文元数据（不含摘要）
+  [1] RSS/Crossref 发现 → 论文元数据（不含摘要）
   [2] DOI 标准化 + 去重（同一次运行内）
   [3] seen + date 预过滤
   [4] 候选池 relevance-first 截断
@@ -18,7 +18,7 @@ Quant Marketing Daily — 主入口。
 
 用法:
   python -m src.fetch                  # 正常模式
-  python -m src.fetch --dry-run        # 仅 RSS + 去重 + 日期过滤 + relevance 截断，不抓摘要/不写 seen
+  python -m src.fetch --dry-run        # 仅 RSS/Crossref + 去重 + 日期过滤 + relevance 截断，不抓摘要/不写 seen
   python -m src.fetch --rebuild        # 忽略 seen 重建今天日报，不写 seen
   python -m src.fetch --include-ssrn   # P0 + SSRN（P2 功能）
 
@@ -51,7 +51,7 @@ def main() -> None:
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="仅 RSS 解析 + 去重 + 日期过滤 + relevance 截断，不抓摘要、不写 seen_dois、不产日报",
+        help="仅 RSS/Crossref 解析 + 去重 + 日期过滤 + relevance 截断，不抓摘要、不写 seen_dois、不产日报",
     )
     parser.add_argument(
         "--include-ssrn",
@@ -77,9 +77,9 @@ def main() -> None:
     _check_pending_mktsci()
 
     # =====================================================================
-    # [1] RSS 发现
+    # [1] RSS/Crossref 发现
     # =====================================================================
-    print("\n[1/10] RSS 发现 → 论文元数据（不含摘要）")
+    print("\n[1/10] RSS/Crossref 发现 → 论文元数据（不含摘要）")
     papers = fetch_all_rss()
     print(f"  → {len(papers)} raw papers")
 
@@ -95,7 +95,7 @@ def main() -> None:
             print(f"  [WARN] SSRN fetch failed: {e}")
 
     if not papers:
-        print("  → 无 RSS 数据，终止。")
+        print("  → 无 RSS/Crossref 数据，终止。")
         return
 
     # =====================================================================

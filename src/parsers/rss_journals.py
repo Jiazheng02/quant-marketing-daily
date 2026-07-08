@@ -2,25 +2,35 @@
 RSS 解析 — 五大期刊元数据提取（不含摘要）。
 
 双日期模型：
-  online_date  — 过滤用（updated > published > prism_coverdate > ""）
-  coverdate    — 展示用（prism_coverdate）
+  online_date  — 过滤用（prism/print issue date > online/AiA date > ""）
+  coverdate    — 展示用（prism/print issue date）
 
-RSS 仅发现论文；摘要从出版商详情页抓取（见 scraper/）。
+RSS/Crossref 仅发现论文；摘要从出版商详情页抓取（见 scraper/）。
 """
 
 import hashlib
+import os
 import re
 from datetime import datetime
 from typing import Optional
 
 import feedparser
 
-from src.config import JOURNALS, RSS_MAX_ENTRIES, today_str
+from src.config import JOURNALS, RSS_MAX_ENTRIES
 
-# INFORMS journals ISSN mapping (Crossref fallback when RSS blocked by Cloudflare)
-_INFORMS_ISSN = {
+# Crossref ISSN mapping for publisher fallback/supplement.
+_CROSSREF_ISSN = {
+    "JM": "0022-2429",
+    "JMR": "0022-2437",
     "MktSci": "0732-2399",
     "MngSci": "0025-1909",
+}
+
+_CROSSREF_MAX_ROWS = {
+    "JM": 80,
+    "JMR": 80,
+    "MktSci": 80,
+    "MngSci": 200,
 }
 
 
@@ -235,104 +245,151 @@ def _paper_id(doi: Optional[str], title: str, journal_key: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Crossref 回退（INFORMS RSS 被 Cloudflare 403 时使用）
+# Crossref 回退/补充（RSS 被拦截或不完整时使用）
 # ---------------------------------------------------------------------------
 
-def _fetch_informs_crossref(journal_key: str, max_entries: int = 50) -> list[dict]:
-    """Fetch INFORMS papers via Crossref API when RSS is blocked by Cloudflare."""
+def _crossref_fetch_from() -> str:
+    """Use the same moving date window as the main date filter."""
+    from src.dedup import compute_fetch_from
+    return compute_fetch_from()
+
+
+def _fmt_crossref_date(parts) -> str:
+    """Format Crossref date-parts, allowing YYYY or YYYY-MM dates."""
+    if not parts or not parts[0]:
+        return ""
+    year = parts[0]
+    month = parts[1] if len(parts) >= 2 else 1
+    day = parts[2] if len(parts) >= 3 else 1
+    return f"{year:04d}-{month:02d}-{day:02d}"
+
+
+def _split_crossref_pages(page: str) -> tuple[str | None, str | None]:
+    if not page:
+        return None, None
+    if "-" in page:
+        start, end = page.split("-", 1)
+        return start.strip() or None, end.strip() or None
+    return page.strip() or None, None
+
+
+def _crossref_item_to_paper(item: dict, journal_key: str) -> dict | None:
+    doi = item.get("DOI", "").strip()
+    if not doi:
+        return None
+
+    title_list = item.get("title", [])
+    title = title_list[0].strip() if title_list else ""
+    if not title:
+        title = item.get("original-title", [None])[0] or ""
+
+    title = _clean_html(title)
+    if not title or _is_non_paper(title):
+        return None
+
+    journal = JOURNALS[journal_key]
+
+    authors = []
+    for a in item.get("author", []):
+        given = a.get("given", "")
+        family = a.get("family", "")
+        name = f"{given} {family}".strip()
+        if name:
+            authors.append(name)
+
+    print_parts = item.get("published-print", {}).get("date-parts", [[None]])[0]
+    online_parts = item.get("published-online", {}).get("date-parts", [[None]])[0]
+    published_parts = item.get("published", {}).get("date-parts", [[None]])[0]
+    created_parts = item.get("created", {}).get("date-parts", [[None]])[0]
+
+    # Formal issue date first. Sage/JM/JMR often have old online dates but
+    # current print issue dates, and those issue dates should drive inclusion.
+    publication_date = (
+        _fmt_crossref_date(print_parts)
+        or _fmt_crossref_date(online_parts)
+        or _fmt_crossref_date(published_parts)
+        or _fmt_crossref_date(created_parts)
+    )
+
+    page = item.get("page", "") or ""
+    startpage, endpage = _split_crossref_pages(page)
+
+    return {
+        "id": _paper_id(doi, title, journal_key),
+        "title": title,
+        "authors": authors,
+        "abstract": None,
+        "abstract_missing": False,
+        "journal": journal_key,
+        "journal_full": journal["name"],
+        "publisher": journal["publisher"],
+        "doi": doi,
+        "url": doi_to_url(doi),
+        "online_date": publication_date,
+        "coverdate": publication_date,
+        "volume": str(item.get("volume", "") or "") or None,
+        "issue": str(item.get("issue", "") or "") or None,
+        "startpage": startpage,
+        "endpage": endpage,
+        "needs_filter": journal["needs_filter"],
+    }
+
+
+def _fetch_crossref_journal(journal_key: str, max_entries: int | None = None) -> list[dict]:
+    """Fetch papers via Crossref when RSS is blocked or incomplete."""
     import requests
 
-    issn = _INFORMS_ISSN.get(journal_key)
+    issn = _CROSSREF_ISSN.get(journal_key)
     if not issn:
         print(f"[Crossref] No ISSN mapping for {journal_key}")
         return []
 
     journal = JOURNALS[journal_key]
-    today = today_str()
+    fetch_from = _crossref_fetch_from()
+    if max_entries is None:
+        max_entries = _CROSSREF_MAX_ROWS.get(journal_key, RSS_MAX_ENTRIES.get(journal_key, 50))
 
-    try:
-        url = (
-            f"https://api.crossref.org/works"
-            f"?filter=issn:{issn},from-pub-date:2026-06-01"
-            f"&rows={max_entries}&sort=published&order=desc"
-            f"&mailto=quant-marketing-daily@github.io"
-        )
-        resp = requests.get(url, timeout=20)
-        resp.raise_for_status()
-        data = resp.json()
-    except Exception as e:
-        print(f"[Crossref] API request failed for {journal_key}: {e}")
-        return []
+    papers_by_id: dict[str, dict] = {}
+    filters = ("from-print-pub-date", "from-online-pub-date")
 
-    items = data.get("message", {}).get("items", [])
-    if not items:
-        print(f"[Crossref] No items returned for {journal_key}")
-        return []
-
-    papers = []
-    for item in items:
-        doi = item.get("DOI", "").strip()
-        if not doi:
+    for date_filter in filters:
+        try:
+            url = (
+                f"https://api.crossref.org/works"
+                f"?filter=issn:{issn},{date_filter}:{fetch_from}"
+                f"&rows={max_entries}&sort=published&order=desc"
+                f"&mailto=quant-marketing-daily@github.io"
+            )
+            resp = requests.get(url, timeout=20)
+            resp.raise_for_status()
+            data = resp.json()
+        except Exception as e:
+            print(f"[Crossref] API request failed for {journal_key} ({date_filter}): {e}")
             continue
 
-        title_list = item.get("title", [])
-        title = title_list[0].strip() if title_list else ""
-        if not title:
-            title = item.get("original-title", [None])[0] or ""
-
-        if not title or not doi:
+        items = data.get("message", {}).get("items", [])
+        if not items:
+            print(f"[Crossref] No items returned for {journal_key} ({date_filter})")
             continue
 
-        # Authors
-        authors = []
-        for a in item.get("author", []):
-            given = a.get("given", "")
-            family = a.get("family", "")
-            name = f"{given} {family}".strip()
-            if name:
-                authors.append(name)
+        for item in items:
+            paper = _crossref_item_to_paper(item, journal_key)
+            if paper and paper["id"] not in papers_by_id:
+                papers_by_id[paper["id"]] = paper
 
-        # Dates
-        pub_date = item.get("published-print", {}).get("date-parts", [[None]])[0]
-        online_date_parts = item.get("published-online", {}).get("date-parts", [[None]])[0]
-        created_date = item.get("created", {}).get("date-parts", [[None]])[0]
-
-        def _fmt_date(parts):
-            if parts and parts[0]:
-                return f"{parts[0]:04d}-{parts[1]:02d}-{parts[2]:02d}" if len(parts) >= 3 else ""
-            return ""
-
-        coverdate = _fmt_date(pub_date or online_date_parts or created_date)
-        online_date = _fmt_date(online_date_parts or pub_date or created_date)
-
-        # Volume / issue / pages
-        volume = str(item.get("volume", "") or "")
-        issue = str(item.get("issue", "") or "")
-        page = item.get("page", "")
-
-        paper = {
-            "id": _paper_id(doi, title, journal_key),
-            "title": _clean_html(title),
-            "authors": authors,
-            "abstract": None,
-            "abstract_missing": False,
-            "journal": journal_key,
-            "journal_full": journal["name"],
-            "publisher": journal["publisher"],
-            "doi": doi,
-            "url": doi_to_url(doi),
-            "online_date": online_date,
-            "coverdate": coverdate,
-            "volume": volume or None,
-            "issue": issue or None,
-            "startpage": None,
-            "endpage": None,
-            "needs_filter": journal["needs_filter"],
-        }
-        papers.append(paper)
-
-    print(f"[Crossref] {journal['name']} ({journal_key}): {len(papers)} papers")
+    papers = list(papers_by_id.values())
+    print(f"[Crossref] {journal['name']} ({journal_key}): {len(papers)} papers from {fetch_from}")
     return papers
+
+
+def _merge_papers_by_id(primary: list[dict], supplement: list[dict]) -> list[dict]:
+    """Merge paper lists by id, preserving primary metadata first."""
+    merged: dict[str, dict] = {}
+    for paper in primary + supplement:
+        pid = paper["id"]
+        if pid not in merged:
+            merged[pid] = paper
+    return list(merged.values())
 
 
 # ---------------------------------------------------------------------------
@@ -422,10 +479,13 @@ def parse_single_rss(journal_key: str, max_entries: int | None = None) -> list[d
 def fetch_all_rss() -> list[dict]:
     """获取所有期刊 RSS，返回合并后的论文列表（不含摘要）。
 
-    INFORMS 期刊的 RSS 在 CI 中可能被 Cloudflare 403 拦截，
-    此时自动回退到 Crossref API。
+    Sage/INFORMS RSS 在 CI 中可能被 Cloudflare/出版商策略拦截，
+    此时自动回退到 Crossref API；GitHub Actions 上额外用 Crossref
+    补充 RSS，避免 RSS 局部缺失导致整刊/整期漏报。
     """
     all_papers = []
+    is_ci = os.environ.get("GITHUB_ACTIONS") == "true" or os.environ.get("CI") == "true"
+
     for key, cfg in JOURNALS.items():
         if not cfg.get("rss"):
             continue  # SSRN 无 RSS，走独立 fetch
@@ -433,10 +493,15 @@ def fetch_all_rss() -> list[dict]:
         papers = parse_single_rss(key)
         source = "RSS"
 
-        # INFORMS RSS blocked by Cloudflare → fallback to Crossref
-        if not papers and cfg["publisher"] == "INFORMS":
-            papers = _fetch_informs_crossref(key)
+        if not papers and key in _CROSSREF_ISSN:
+            papers = _fetch_crossref_journal(key)
             source = "Crossref"
+        elif papers and is_ci and key in _CROSSREF_ISSN:
+            crossref_papers = _fetch_crossref_journal(key)
+            if crossref_papers:
+                before = len(papers)
+                papers = _merge_papers_by_id(papers, crossref_papers)
+                source = f"RSS+Crossref ({before}+{len(crossref_papers)}→{len(papers)})"
 
         if papers:
             print(f"[{source}] {cfg['name']} ({key}): {len(papers)} papers")

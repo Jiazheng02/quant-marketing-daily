@@ -51,7 +51,7 @@ _2026-06-01 ~ 2026-07-02 · 20 篇新论文 · 4 个来源_
 
 ```
         ┌────────────────────────────┐
-        │  [1] RSS 元数据发现（5 刊）  │
+        │  [1] RSS/Crossref 元数据发现 │
         └─────────────┬──────────────┘
                       ▼
         ┌────────────────────────────┐
@@ -117,7 +117,7 @@ quant-marketing-daily/
 │   │
 │   ├── parsers/
 │   │   ├── __init__.py
-│   │   ├── rss_journals.py             # [1] 5 刊 RSS 解析（双日期模型）
+│   │   ├── rss_journals.py             # [1] 5 刊 RSS + Crossref fallback（双日期模型）
 │   │   └── ssrn_marketing.py           # SSRN working paper 爬取（P2）
 │   └── scraper/
 │       ├── __init__.py
@@ -184,7 +184,7 @@ INFORMS_STEALTH_HEADLESS=0
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 
-# 首跑建议 dry-run：验证 RSS 元数据和截断候选，不写 seen_dois
+# 首跑建议 dry-run：验证 RSS/Crossref 元数据和截断候选，不写 seen_dois
 python -m src.fetch --dry-run
 
 # 确认无误后正式运行
@@ -231,7 +231,7 @@ python -m src.fetch [--dry-run] [--rebuild] [--include-ssrn]
 
 | Flag | 说明 |
 |------|------|
-| `--dry-run` | 仅 RSS 发现 + 去重 + 日期过滤 + relevance 截断，不抓摘要、不写 seen_dois |
+| `--dry-run` | 仅 RSS/Crossref 发现 + 去重 + 日期过滤 + relevance 截断，不抓摘要、不写 seen_dois |
 | `--rebuild` | 忽略 `seen_dois` 重建当日窗口日报，不写 seen_dois |
 | `--include-ssrn` | 启用 SSRN Working Paper 抓取（P2，默认关闭） |
 

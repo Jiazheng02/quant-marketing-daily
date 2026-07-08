@@ -98,9 +98,9 @@ def cmd_regenerate(date_str: str | None = None) -> None:
     print(f"Re-running pipeline for {date_str} with updated MktSci cache...")
     print()
 
-    # [1] RSS 发现
+    # [1] RSS/Crossref 发现
     papers = fetch_all_rss()
-    print(f"[1] RSS: {len(papers)} raw papers")
+    print(f"[1] RSS/Crossref: {len(papers)} raw papers")
 
     # [2-3] 去重 + 过滤
     papers = deduplicate(papers)
